@@ -1,0 +1,11 @@
+# Ignore sensitive and temporary files
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.log
+backup_*/
+db/chroma_db/
+

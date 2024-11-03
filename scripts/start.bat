@@ -1,0 +1,3 @@
+@echo off
+echo Starting Axis RAG GUI...
+python notebooks/axis_rag_gui.py 

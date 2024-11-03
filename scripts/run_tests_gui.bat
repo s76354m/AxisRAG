@@ -1,0 +1,3 @@
+@echo off
+echo Starting Axis RAG Test Runner...
+python notebooks/tests/test_axis_rag.py 

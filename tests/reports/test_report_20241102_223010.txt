@@ -1,0 +1,39 @@
+test_end_to_end_analysis (__main__.TestAxisRAG.test_end_to_end_analysis)
+Test complete analysis process ... FAIL
+test_dependencies (__main__.TestRAGComponents.test_dependencies)
+Test if required packages are installed ... ok
+test_environment_variables (__main__.TestRAGComponents.test_environment_variables)
+Test if required environment variables are set ... FAIL
+
+======================================================================
+FAIL: test_end_to_end_analysis (__main__.TestAxisRAG.test_end_to_end_analysis)
+Test complete analysis process
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\xbows\OneDrive\Desktop\Dad\Jupyter\notebooks\tests\test_axis_rag.py", line 55, in test_end_to_end_analysis
+    self._test_standard_questions()
+  File "C:\Users\xbows\OneDrive\Desktop\Dad\Jupyter\notebooks\tests\test_axis_rag.py", line 111, in _test_standard_questions
+    openai_response = self.app.ask_question(question, "openai")
+                      ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AxisRAGGUI' object has no attribute 'ask_question'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\xbows\OneDrive\Desktop\Dad\Jupyter\notebooks\tests\test_axis_rag.py", line 58, in test_end_to_end_analysis
+    self.fail(f"End-to-end test failed: {str(e)}")
+AssertionError: End-to-end test failed: 'AxisRAGGUI' object has no attribute 'ask_question'
+
+======================================================================
+FAIL: test_environment_variables (__main__.TestRAGComponents.test_environment_variables)
+Test if required environment variables are set
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\xbows\OneDrive\Desktop\Dad\Jupyter\notebooks\tests\test_axis_rag.py", line 153, in test_environment_variables
+    self.assertIsNotNone(os.getenv(var), f"{var} is not set")
+AssertionError: unexpectedly None : OPENAI_API_KEY is not set
+
+----------------------------------------------------------------------
+Ran 3 tests in 31.475s
+
+FAILED (failures=2)

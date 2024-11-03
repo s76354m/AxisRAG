@@ -1,0 +1,30 @@
+setUpClass (__main__.TestAxisRAG) ... ERROR
+test_dependencies (__main__.TestRAGComponents.test_dependencies)
+Test if required packages are installed ... ok
+test_environment_variables (__main__.TestRAGComponents.test_environment_variables)
+Test if required environment variables are set ... FAIL
+
+======================================================================
+ERROR: setUpClass (__main__.TestAxisRAG)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\xbows\OneDrive\Desktop\Dad\Jupyter\notebooks\tests\test_axis_rag.py", line 27, in setUpClass
+    cls.message_queue = Queue()
+                        ^^^^^
+NameError: name 'Queue' is not defined
+
+======================================================================
+FAIL: test_environment_variables (__main__.TestRAGComponents.test_environment_variables)
+Test if required environment variables are set
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\xbows\OneDrive\Desktop\Dad\Jupyter\notebooks\tests\test_axis_rag.py", line 171, in test_environment_variables
+    self.assertIsNotNone(os.getenv(var), f"{var} is not set")
+AssertionError: unexpectedly None : OPENAI_API_KEY is not set
+
+
+Test Results:
+Ran 2 tests
+Successes: 0
+Failures: 1
+Errors: 1

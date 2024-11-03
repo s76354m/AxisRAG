@@ -1,0 +1,24 @@
+test_console_output (__main__.TestAxisRAG.test_console_output)
+Test console output functionality ... ok
+test_gui_initialization (__main__.TestAxisRAG.test_gui_initialization)
+Test if GUI initializes properly ... ok
+test_status_updates (__main__.TestAxisRAG.test_status_updates)
+Test status bar updates ... ok
+test_dependencies (__main__.TestRAGComponents.test_dependencies)
+Test if required packages are installed ... ok
+test_environment_variables (__main__.TestRAGComponents.test_environment_variables)
+Test if required environment variables are set ... FAIL
+
+======================================================================
+FAIL: test_environment_variables (__main__.TestRAGComponents.test_environment_variables)
+Test if required environment variables are set
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\xbows\OneDrive\Desktop\Dad\Jupyter\notebooks\tests\test_axis_rag.py", line 59, in test_environment_variables
+    self.assertIsNotNone(os.getenv(var), f"{var} is not set")
+AssertionError: unexpectedly None : OPENAI_API_KEY is not set
+
+----------------------------------------------------------------------
+Ran 5 tests in 2.132s
+
+FAILED (failures=1)
