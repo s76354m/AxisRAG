@@ -1,14 +1,29 @@
-from typing import List, Dict, Optional
-from pathlib import Path
-import fitz  # PyMuPDF
+from typing import List, Dict
+from dataclasses import dataclass, asdict
 import logging
-from dataclasses import dataclass
+from datetime import datetime
+import fitz  # PyMuPDF
 from tqdm import tqdm
 
 @dataclass
 class ProcessedChunk:
     content: str
     metadata: Dict
+    
+    def __getitem__(self, key):
+        """Make the class subscriptable"""
+        if key == 'content':
+            return self.content
+        elif key == 'metadata':
+            return self.metadata
+        raise KeyError(f"Key {key} not found")
+        
+    def to_dict(self) -> Dict:
+        """Convert to dictionary format"""
+        return {
+            'content': self.content,
+            'metadata': self.metadata
+        }
 
 class DocumentProcessor:
     def __init__(self):
@@ -30,13 +45,15 @@ class DocumentProcessor:
                 if not text.strip():
                     continue
                     
-                chunks.append(ProcessedChunk(
+                chunk = ProcessedChunk(
                     content=text,
                     metadata={
-                        "page": page_num + 1,
-                        "source": pdf_path
+                        'page': page_num + 1,
+                        'source': pdf_path,
+                        'timestamp': datetime.now().isoformat()
                     }
-                ))
+                )
+                chunks.append(chunk)
                 
             doc.close()
             self.logger.info(f"Processed {len(chunks)} chunks")

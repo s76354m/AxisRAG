@@ -63,11 +63,9 @@ class AxisRAG:
             batch_size = 50
             for i in range(0, len(chunks), batch_size):
                 batch = chunks[i:min(i + batch_size, len(chunks))]
-                self.embeddings_manager.add_documents([{
-                    'content': chunk.content,
-                    'metadata': chunk.metadata
-                } for chunk in batch])
-                
+                # Convert chunks to dictionary format for storage
+                batch_dicts = [chunk.to_dict() for chunk in batch]
+                self.embeddings_manager.add_documents(batch_dicts)
                 self.logger.info(f"Added batch of {len(batch)} chunks")
             
             # Generate comparative report
