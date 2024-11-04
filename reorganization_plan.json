@@ -1,0 +1,150 @@
+{
+  "current_structure": {
+    "directories": [
+      "app",
+      "data",
+      "docs",
+      "notebooks",
+      "scripts",
+      "src",
+      "tests",
+      "app\\components",
+      "data\\processed",
+      "data\\raw",
+      "notebooks\\examples",
+      "src\\models",
+      "src\\utils",
+      "tests\\data",
+      "tests\\reports",
+      "tests\\data\\test_documents"
+    ],
+    "files": [
+      ".env",
+      ".env.template",
+      ".gitignore",
+      "project_analysis.json",
+      "README.md",
+      "reorganization_plan.json",
+      "requirements.txt",
+      "app\\__init__.py",
+      "docs\\index.md",
+      "docs\\project_structure.md",
+      "docs\\setup_guide.md",
+      "docs\\testing_guide.md",
+      "docs\\usage_guide.md",
+      "scripts\\analyze_project.py",
+      "scripts\\axis_rag.bat",
+      "scripts\\generate_docs.py",
+      "scripts\\launch_interface.bat",
+      "scripts\\reorganize_project.py",
+      "scripts\\run_rag.bat",
+      "scripts\\run_tests.bat",
+      "scripts\\run_tests.py",
+      "scripts\\run_tests_gui.bat",
+      "scripts\\setup_dependencies.bat",
+      "scripts\\setup_environment.py",
+      "scripts\\start.bat",
+      "scripts\\verify_structure.py",
+      "src\\app.py",
+      "src\\AxisRAG.py",
+      "src\\axis_rag_gui.py",
+      "src\\document_analyzer.py",
+      "src\\rag_core.py",
+      "src\\__init__.py",
+      "tests\\test_axis_rag.py",
+      "tests\\__init__.py",
+      "app\\components\\__init__.py",
+      "data\\raw\\Axis Program Management_Unformatted detailed.pdf",
+      "src\\models\\__init__.py",
+      "src\\utils\\__init__.py",
+      "tests\\reports\\test_report_20241102_222545.txt",
+      "tests\\reports\\test_report_20241102_223010.txt",
+      "tests\\reports\\test_report_20241102_225325.txt",
+      "tests\\reports\\test_report_20241102_225630.txt",
+      "tests\\reports\\test_report_20241102_225840.txt",
+      "tests\\reports\\test_report_20241102_232253.txt",
+      "tests\\reports\\test_report_20241102_233113.txt"
+    ],
+    "file_types": {
+      ".template": 1,
+      ".json": 2,
+      ".md": 6,
+      ".txt": 8,
+      ".py": 18,
+      ".bat": 7,
+      ".pdf": 1
+    }
+  },
+  "new_structure": {
+    "directories": [
+      "src",
+      "src/utils",
+      "src/models",
+      "notebooks",
+      "notebooks/examples",
+      "app",
+      "app/components",
+      "data/raw",
+      "data/processed",
+      "tests",
+      "tests/data/test_documents",
+      "tests/reports",
+      "docs",
+      "scripts"
+    ],
+    "file_moves": {
+      "AxisRAG.py": [
+        "src/AxisRAG.py",
+        ".py"
+      ],
+      "report_generator.py": [
+        "src/report_generator.py",
+        ".py"
+      ],
+      "memory_manager.py": [
+        "src/memory_manager.py",
+        ".py"
+      ],
+      "embeddings.py": [
+        "src/models/embeddings.py",
+        ".py"
+      ],
+      "llm_wrapper.py": [
+        "src/models/llm_wrapper.py",
+        ".py"
+      ],
+      "logging_utils.py": [
+        "src/utils/logging_utils.py",
+        ".py"
+      ],
+      "file_utils.py": [
+        "src/utils/file_utils.py",
+        ".py"
+      ],
+      "app.py": [
+        "app/main.py",
+        ".py"
+      ],
+      "dashboard.py": [
+        "app/components/dashboard.py",
+        ".py"
+      ],
+      "test_rag.py": [
+        "tests/test_rag.py",
+        ".py"
+      ],
+      "test_report_quality.py": [
+        "tests/test_report_quality.py",
+        ".py"
+      ],
+      "run_rag.bat": [
+        "scripts/run_rag.bat",
+        ".bat"
+      ],
+      "setup_env.py": [
+        "scripts/setup_env.py",
+        ".py"
+      ]
+    }
+  }
+}

@@ -35,11 +35,17 @@ def reorganize_project(root_dir: Path, structure: dict):
     new_dirs = [
         'src',
         'src/utils',
-        'tests',
-        'tests/data/test_documents',
+        'src/models',
+        'notebooks',
         'notebooks/examples',
         'app',
         'app/components',
+        'data/raw',
+        'data/processed',
+        'tests',
+        'tests/data/test_documents',
+        'tests/reports',
+        'docs',
         'scripts'
     ]
     
@@ -48,16 +54,20 @@ def reorganize_project(root_dir: Path, structure: dict):
         (root_dir / dir_path).mkdir(parents=True, exist_ok=True)
     
     # Create __init__.py files
-    init_locations = ['src', 'src/utils', 'tests', 'app', 'app/components']
+    init_locations = ['src', 'src/utils', 'src/models', 'tests', 'app', 'app/components']
     for loc in init_locations:
         (root_dir / loc / '__init__.py').touch()
     
     # Move/create core files
     file_moves = {
         # Source files
-        'rag_core.py': ('src/rag_core.py', '.py'),
+        'AxisRAG.py': ('src/AxisRAG.py', '.py'),
         'report_generator.py': ('src/report_generator.py', '.py'),
         'memory_manager.py': ('src/memory_manager.py', '.py'),
+        
+        # Model files
+        'embeddings.py': ('src/models/embeddings.py', '.py'),
+        'llm_wrapper.py': ('src/models/llm_wrapper.py', '.py'),
         
         # Utility files
         'logging_utils.py': ('src/utils/logging_utils.py', '.py'),
@@ -68,12 +78,11 @@ def reorganize_project(root_dir: Path, structure: dict):
         'dashboard.py': ('app/components/dashboard.py', '.py'),
         
         # Test files
-        'test_rag_core.py': ('tests/test_rag_core.py', '.py'),
+        'test_rag.py': ('tests/test_rag.py', '.py'),
         'test_report_quality.py': ('tests/test_report_quality.py', '.py'),
-        'test_memory.py': ('tests/test_memory.py', '.py'),
         
         # Script files
-        'run_tests.py': ('scripts/run_tests.py', '.py'),
+        'run_rag.bat': ('scripts/run_rag.bat', '.bat'),
         'setup_env.py': ('scripts/setup_env.py', '.py')
     }
     
