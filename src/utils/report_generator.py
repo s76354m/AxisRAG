@@ -3,6 +3,8 @@ from dataclasses import dataclass
 import logging
 from datetime import datetime
 import os
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+import json
 
 @dataclass
 class ReportSection:
@@ -13,18 +15,33 @@ class ReportSection:
 class ReportGenerator:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=2000,  # Drastically reduced from 8000
+            chunk_overlap=100,  # Reduced overlap
+            length_function=len,
+            separators=["\n\n", "\n", ". ", " ", ""]
+        )
+        
+        # Secondary splitter for extra-large chunks
+        self.safety_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=50,
+            length_function=len
+        )
+        
         self.sections = [
             ReportSection(
                 title="Technical Architecture",
-                prompt_template="""Analyze the technical architecture from these documents:
+                prompt_template="""Analyze this section of the technical architecture:
                 {documents}
+                
                 Focus on:
                 - System components
                 - Technical stack
                 - Architecture patterns
                 - Integration points
                 
-                Provide a detailed analysis:""",
+                Provide a concise analysis of just this section:""",
                 summary_template="Architecture overview: {key_points}"
             ),
             ReportSection(
@@ -69,34 +86,107 @@ class ReportGenerator:
         ]
         
     async def generate_comparative_report(self, chunks: List[ProcessedChunk]) -> Dict:
-        """Generate comparative analysis report from document chunks"""
+        """Generate comparative analysis report with strict size management"""
         try:
             self.logger.info("Generating comparative report")
             report = {}
             
-            # Convert chunks to dictionary format
-            documents = [chunk.to_dict()['content'] for chunk in chunks]
+            # Extract and combine content with length limit
+            all_text = "\n".join(
+                chunk.content[:2000] for chunk in chunks  # Limit each chunk
+            )
             
-            # Generate report for each section
+            # Initial split into very small chunks
+            text_chunks = self.text_splitter.split_text(all_text)
+            self.logger.info(f"Split into {len(text_chunks)} small chunks for processing")
+            
+            # Process each section with smaller batches
             for section in self.sections:
                 self.logger.info(f"Generating section: {section.title}")
-                report[section.title] = self._analyze_section(
-                    section,
-                    "\n".join(documents)
-                )
+                section_analyses = []
                 
+                # Smaller batch size
+                batch_size = 3  # Reduced from 5
+                for i in range(0, len(text_chunks), batch_size):
+                    batch = text_chunks[i:i + batch_size]
+                    
+                    for j, chunk in enumerate(batch):
+                        chunk_num = i + j + 1
+                        try:
+                            analysis = await self._analyze_chunk(section, chunk, chunk_num, len(text_chunks))
+                            if analysis:  # Only add non-empty analyses
+                                section_analyses.append(analysis)
+                        except Exception as e:
+                            self.logger.error(f"Error analyzing chunk {chunk_num}: {str(e)}")
+                            continue
+                
+                # Combine analyses with length check
+                report[section.title] = self._combine_analyses(section_analyses[:10])  # Limit number of analyses
+            
             return report
             
         except Exception as e:
             self.logger.error(f"Error generating report: {str(e)}")
             raise
             
-    def _analyze_section(self, section: ReportSection, documents: str) -> Dict:
-        """Analyze documents for a specific report section"""
+    async def _analyze_chunk(self, section: ReportSection, chunk: str, chunk_num: int, total_chunks: int) -> str:
+        """Analyze a single chunk of text using LLM with strict size limits"""
+        try:
+            # Further split if chunk is still too large
+            if len(chunk) > 2000:  # Much lower threshold
+                sub_chunks = self.safety_splitter.split_text(chunk)
+                analyses = []
+                
+                for i, sub_chunk in enumerate(sub_chunks):
+                    prompt = section.prompt_template.format(
+                        documents=f"[Part {chunk_num}.{i+1}/{total_chunks}]\n{sub_chunk[:1500]}"  # Hard limit
+                    )
+                    
+                    try:
+                        # Try OpenAI with shorter timeout
+                        response = await self.openai_llm.agenerate_text(
+                            prompt,
+                            timeout=30
+                        )
+                        analyses.append(response)
+                    except Exception as e:
+                        self.logger.warning(f"OpenAI analysis failed: {str(e)}, trying Anthropic...")
+                        try:
+                            # Fallback to Anthropic with shorter timeout
+                            response = await self.anthropic_llm.agenerate_text(
+                                prompt,
+                                timeout=30
+                            )
+                            analyses.append(response)
+                        except Exception as e2:
+                            self.logger.error(f"Both LLMs failed for sub-chunk {i+1}: {str(e2)}")
+                            continue  # Skip failed chunks instead of adding error message
+                
+                return "\n\n".join(analyses) if analyses else "Analysis failed for this section"
+                
+            else:
+                # Process normal-sized chunk with hard limit
+                prompt = section.prompt_template.format(
+                    documents=f"[Part {chunk_num}/{total_chunks}]\n{chunk[:1500]}"
+                )
+                
+                try:
+                    return await self.openai_llm.agenerate_text(prompt, timeout=30)
+                except Exception as e:
+                    self.logger.warning(f"OpenAI analysis failed: {str(e)}, trying Anthropic...")
+                    return await self.anthropic_llm.agenerate_text(prompt, timeout=30)
+                    
+        except Exception as e:
+            self.logger.error(f"Error analyzing chunk {chunk_num}: {str(e)}")
+            return ""  # Return empty string for failed chunks
+        
+    def _combine_analyses(self, analyses: List[str]) -> Dict:
+        """Combine multiple chunk analyses into a single section report"""
+        combined_content = "\n\n".join(analyses)
         return {
-            'title': section.title,
-            'content': section.prompt_template.format(documents=documents),
+            'content': combined_content,
             'metadata': {
+                'chunk_count': len(analyses),
                 'generated_at': datetime.now().isoformat()
             }
         }
@@ -105,19 +195,26 @@ class ReportGenerator:
         """Save report to files"""
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_dir = os.path.join('notebooks', 'output')
+            output_dir = 'reports'
             os.makedirs(output_dir, exist_ok=True)
             
-            # Save main report
-            main_path = os.path.join(output_dir, f'analysis_report_{timestamp}.txt')
-            with open(main_path, 'w', encoding='utf-8') as f:
-                for section_title, data in report_data.items():
-                    f.write(f"\n=== {section_title} ===\n")
-                    f.write(data['content'])
-                    f.write("\n\n")
-                    
+            # Save as JSON
+            json_path = os.path.join(output_dir, f'comparative_report_{timestamp}.json')
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump({
+                    'metadata': {
+                        'timestamp': datetime.now().isoformat(),
+                        'chunk_count': sum(section.get('metadata', {}).get('chunk_count', 0) 
+                                         for section in report_data.values()),
+                        'models': ['openai', 'anthropic']
+                    },
+                    'sections': report_data
+                }, f, indent=2)
+            
+            self.logger.info(f"Report saved to {json_path}")
+            
             return {
-                'main_report': main_path
+                'json_path': json_path
             }
             
         except Exception as e:

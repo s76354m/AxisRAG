@@ -6,7 +6,7 @@ from datetime import datetime
 
 from .models.llm_wrapper import LLMWrapper
 from .models.embeddings import EmbeddingsManager
-from .models.report_generator import ReportGenerator
+from .utils.report_generator import ReportGenerator
 from .utils.document_processor import DocumentProcessor
 from .utils.evaluation_metrics import EvaluationMetrics
 
