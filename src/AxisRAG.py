@@ -15,26 +15,32 @@ class AxisRAG:
     
     def __init__(self, config: Optional[Dict] = None):
         self.logger = logging.getLogger(__name__)
-        self.config = config or self._default_config()
+        self.config = self._merge_config(config or {})
         self._initialize_components()
         
-    def _default_config(self) -> Dict:
-        """Default configuration settings"""
-        return {
+    def _merge_config(self, user_config: Dict) -> Dict:
+        """Merge user config with default config"""
+        default_config = {
             'output_dir': Path('reports'),
-            'persist_dir': Path('data/processed/vectorstore'),
+            'persist_directory': str(Path('data/processed/vectorstore')),
             'chunk_size': 1000,
             'chunk_overlap': 200,
             'max_tokens': 4000,
             'temperature': 0
         }
         
+        # Create directories if they don't exist
+        Path(default_config['output_dir']).mkdir(parents=True, exist_ok=True)
+        Path(default_config['persist_directory']).mkdir(parents=True, exist_ok=True)
+        
+        return {**default_config, **user_config}
+        
     def _initialize_components(self):
         """Initialize all system components"""
         try:
             self.llm_wrapper = LLMWrapper()
             self.embeddings_manager = EmbeddingsManager(
-                persist_directory=str(self.config['persist_dir'])
+                persist_directory=self.config['persist_directory']
             )
             self.document_processor = DocumentProcessor()
             self.report_generator = ReportGenerator(self.llm_wrapper)
@@ -52,18 +58,24 @@ class AxisRAG:
             
             # Process PDF into chunks
             chunks = self.document_processor.process_pdf(pdf_path)
-            self.logger.info(f"Document processed into {len(chunks)} chunks")
             
-            # Add chunks to vector store
-            self.embeddings_manager.add_documents([{
-                'content': chunk.content,
-                'metadata': chunk.metadata
-            } for chunk in chunks])
+            # Add chunks to vectorstore in batches
+            batch_size = 50
+            for i in range(0, len(chunks), batch_size):
+                batch = chunks[i:min(i + batch_size, len(chunks))]
+                self.embeddings_manager.add_documents([{
+                    'content': chunk.content,
+                    'metadata': chunk.metadata
+                } for chunk in batch])
+                
+                self.logger.info(f"Added batch of {len(batch)} chunks")
             
             # Generate comparative report
+            self.logger.info("Generating comparative report")
             report_data = await self.report_generator.generate_comparative_report(chunks)
             
             # Save report
+            self.logger.info("Saving report")
             report_paths = self.report_generator.save_report(report_data)
             
             return {

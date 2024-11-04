@@ -5,8 +5,14 @@ import logging
 from rich.console import Console
 from rich.progress import Progress
 from rich.logging import RichHandler
+from dotenv import load_dotenv
+import os
+import sys
 
-from .AxisRAG import AxisRAG
+# Add the parent directory to the path
+sys.path.append(str(Path(__file__).parent.parent))
+
+from src.AxisRAG import AxisRAG
 
 console = Console()
 
@@ -82,6 +88,55 @@ def query(query: str):
             
     except Exception as e:
         console.print(f"[bold red]Error:[/] {str(e)}")
+        raise click.Abort()
+
+@cli.command()
+def test_setup():
+    """Test the system setup and configuration"""
+    try:
+        console.print("[bold green]Testing system setup...[/]")
+        
+        # Test environment variables
+        load_dotenv()
+        
+        env_vars = {
+            'OPENAI_API_KEY': os.getenv('OPENAI_API_KEY'),
+            'ANTHROPIC_API_KEY': os.getenv('ANTHROPIC_API_KEY')
+        }
+        
+        # Check environment variables
+        for var_name, var_value in env_vars.items():
+            if var_value:
+                console.print(f"✓ {var_name} is set")
+            else:
+                console.print(f"✗ {var_name} is missing", style="bold red")
+        
+        # Test directory structure
+        directories = [
+            'data/raw',
+            'data/processed',
+            'data/processed/vectorstore',
+            'reports',
+            'src/utils',
+            'src/models'
+        ]
+        
+        console.print("\n[bold]Checking directory structure:[/]")
+        for directory in directories:
+            path = Path(directory)
+            if not path.exists():
+                path.mkdir(parents=True, exist_ok=True)
+                console.print(f"Created directory: {directory}")
+            else:
+                console.print(f"✓ {directory} exists")
+        
+        # Initialize RAG system
+        console.print("\n[bold]Testing RAG system initialization:[/]")
+        rag = AxisRAG()
+        console.print("✓ RAG system initialized successfully")
+        
+    except Exception as e:
+        console.print(f"[bold red]Error during setup test:[/] {str(e)}")
         raise click.Abort()
 
 if __name__ == '__main__':
