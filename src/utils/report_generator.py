@@ -3,8 +3,9 @@ from dataclasses import dataclass
 import logging
 from datetime import datetime
 import os
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 import json
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from src.utils.document_processor import ProcessedChunk
 
 @dataclass
 class ReportSection:
@@ -13,20 +14,15 @@ class ReportSection:
     summary_template: str
 
 class ReportGenerator:
-    def __init__(self):
+    def __init__(self, llm_wrapper=None):
         self.logger = logging.getLogger(__name__)
+        self.llm_wrapper = llm_wrapper
+        
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=2000,  # Drastically reduced from 8000
-            chunk_overlap=100,  # Reduced overlap
+            chunk_size=500,
+            chunk_overlap=50,
             length_function=len,
             separators=["\n\n", "\n", ". ", " ", ""]
-        )
-        
-        # Secondary splitter for extra-large chunks
-        self.safety_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=50,
-            length_function=len
         )
         
         self.sections = [
@@ -34,163 +30,117 @@ class ReportGenerator:
                 title="Technical Architecture",
                 prompt_template="""Analyze this section of the technical architecture:
                 {documents}
-                
-                Focus on:
-                - System components
-                - Technical stack
-                - Architecture patterns
-                - Integration points
-                
-                Provide a concise analysis of just this section:""",
+                Focus on system components, technical stack, and architecture patterns.
+                Provide a concise analysis of this section.""",
                 summary_template="Architecture overview: {key_points}"
             ),
             ReportSection(
                 title="Data Flow Analysis",
-                prompt_template="""Analyze the data flows from these documents:
+                prompt_template="""Analyze the data flows in this section:
                 {documents}
-                Focus on:
-                - Data sources
-                - Data transformations
-                - Data storage
-                - Data access patterns
-                
-                Provide a detailed analysis:""",
+                Focus on data sources, transformations, and access patterns.
+                Provide a concise analysis of this section.""",
                 summary_template="Data flows: {flow_points}"
             ),
             ReportSection(
                 title="Control Structure",
-                prompt_template="""Analyze the control structure from these documents:
+                prompt_template="""Analyze the control structure in this section:
                 {documents}
-                Focus on:
-                - Control hierarchy
-                - Event handling
-                - State management
-                - User interactions
-                
-                Provide a detailed analysis:""",
+                Focus on control hierarchy, event handling, and user interactions.
+                Provide a concise analysis of this section.""",
                 summary_template="Control patterns: {control_points}"
             ),
             ReportSection(
                 title="Integration Points",
-                prompt_template="""Analyze the integration points from these documents:
+                prompt_template="""Analyze the integration points in this section:
                 {documents}
-                Focus on:
-                - External systems
-                - APIs and interfaces
-                - Data exchange patterns
-                - Integration methods
-                
-                Provide a detailed analysis:""",
-                summary_template="Integration summary: {integration_points}"
+                Focus on external systems, APIs, and data exchange patterns.
+                Provide a concise analysis of this section.""",
+                summary_template="Integration points: {integration_points}"
             )
         ]
-        
+
+    async def _analyze_chunk(self, section: ReportSection, chunk: str, chunk_num: int, total_chunks: int) -> str:
+        """Analyze a single chunk of text using LLM"""
+        try:
+            prompt = section.prompt_template.format(
+                documents=f"[Part {chunk_num}/{total_chunks}]\n{chunk[:1500]}"
+            )
+            
+            try:
+                return await self.llm_wrapper.generate_text(prompt)
+            except Exception as e:
+                self.logger.error(f"Error analyzing chunk {chunk_num}: {str(e)}")
+                return f"Analysis failed for part {chunk_num}"
+                
+        except Exception as e:
+            self.logger.error(f"Error analyzing chunk {chunk_num}: {str(e)}")
+            return f"Analysis failed for part {chunk_num}"
+
     async def generate_comparative_report(self, chunks: List[ProcessedChunk]) -> Dict:
         """Generate comparative analysis report with strict size management"""
         try:
             self.logger.info("Generating comparative report")
             report = {}
             
-            # Extract and combine content with length limit
-            all_text = "\n".join(
-                chunk.content[:2000] for chunk in chunks  # Limit each chunk
-            )
+            # Process in very small batches
+            batch_size = 2
             
-            # Initial split into very small chunks
-            text_chunks = self.text_splitter.split_text(all_text)
-            self.logger.info(f"Split into {len(text_chunks)} small chunks for processing")
-            
-            # Process each section with smaller batches
             for section in self.sections:
                 self.logger.info(f"Generating section: {section.title}")
                 section_analyses = []
                 
-                # Smaller batch size
-                batch_size = 3  # Reduced from 5
+                # Combine content with stricter limits
+                all_text = "\n".join(
+                    chunk.content[:1000] for chunk in chunks
+                )
+                
+                text_chunks = self.text_splitter.split_text(all_text)
+                self.logger.info(f"Processing {len(text_chunks)} chunks for {section.title}")
+                
                 for i in range(0, len(text_chunks), batch_size):
                     batch = text_chunks[i:i + batch_size]
                     
                     for j, chunk in enumerate(batch):
                         chunk_num = i + j + 1
                         try:
-                            analysis = await self._analyze_chunk(section, chunk, chunk_num, len(text_chunks))
-                            if analysis:  # Only add non-empty analyses
+                            # Add more context to the prompt
+                            analysis = await self._analyze_chunk(
+                                section, 
+                                chunk[:500],
+                                chunk_num, 
+                                len(text_chunks)
+                            )
+                            if analysis and analysis != f"Analysis failed for part {chunk_num}":
                                 section_analyses.append(analysis)
                         except Exception as e:
                             self.logger.error(f"Error analyzing chunk {chunk_num}: {str(e)}")
                             continue
                 
-                # Combine analyses with length check
-                report[section.title] = self._combine_analyses(section_analyses[:10])  # Limit number of analyses
+                # Only include successful analyses
+                if section_analyses:
+                    report[section.title] = {
+                        'content': "\n\n".join(section_analyses),
+                        'metadata': {
+                            'chunk_count': len(section_analyses),
+                            'generated_at': datetime.now().isoformat()
+                        }
+                    }
+                else:
+                    report[section.title] = {
+                        'content': "No successful analysis generated for this section",
+                        'metadata': {
+                            'chunk_count': 0,
+                            'generated_at': datetime.now().isoformat()
+                        }
+                    }
             
             return report
             
         except Exception as e:
             self.logger.error(f"Error generating report: {str(e)}")
             raise
-            
-    async def _analyze_chunk(self, section: ReportSection, chunk: str, chunk_num: int, total_chunks: int) -> str:
-        """Analyze a single chunk of text using LLM with strict size limits"""
-        try:
-            # Further split if chunk is still too large
-            if len(chunk) > 2000:  # Much lower threshold
-                sub_chunks = self.safety_splitter.split_text(chunk)
-                analyses = []
-                
-                for i, sub_chunk in enumerate(sub_chunks):
-                    prompt = section.prompt_template.format(
-                        documents=f"[Part {chunk_num}.{i+1}/{total_chunks}]\n{sub_chunk[:1500]}"  # Hard limit
-                    )
-                    
-                    try:
-                        # Try OpenAI with shorter timeout
-                        response = await self.openai_llm.agenerate_text(
-                            prompt,
-                            timeout=30
-                        )
-                        analyses.append(response)
-                    except Exception as e:
-                        self.logger.warning(f"OpenAI analysis failed: {str(e)}, trying Anthropic...")
-                        try:
-                            # Fallback to Anthropic with shorter timeout
-                            response = await self.anthropic_llm.agenerate_text(
-                                prompt,
-                                timeout=30
-                            )
-                            analyses.append(response)
-                        except Exception as e2:
-                            self.logger.error(f"Both LLMs failed for sub-chunk {i+1}: {str(e2)}")
-                            continue  # Skip failed chunks instead of adding error message
-                
-                return "\n\n".join(analyses) if analyses else "Analysis failed for this section"
-                
-            else:
-                # Process normal-sized chunk with hard limit
-                prompt = section.prompt_template.format(
-                    documents=f"[Part {chunk_num}/{total_chunks}]\n{chunk[:1500]}"
-                )
-                
-                try:
-                    return await self.openai_llm.agenerate_text(prompt, timeout=30)
-                except Exception as e:
-                    self.logger.warning(f"OpenAI analysis failed: {str(e)}, trying Anthropic...")
-                    return await self.anthropic_llm.agenerate_text(prompt, timeout=30)
-                    
-        except Exception as e:
-            self.logger.error(f"Error analyzing chunk {chunk_num}: {str(e)}")
-            return ""  # Return empty string for failed chunks
-        
-    def _combine_analyses(self, analyses: List[str]) -> Dict:
-        """Combine multiple chunk analyses into a single section report"""
-        combined_content = "\n\n".join(analyses)
-        return {
-            'content': combined_content,
-            'metadata': {
-                'chunk_count': len(analyses),
-                'generated_at': datetime.now().isoformat()
-            }
-        }
-        
+
     def save_report(self, report_data: Dict) -> Dict[str, str]:
         """Save report to files"""
         try:
@@ -204,8 +154,10 @@ class ReportGenerator:
                 json.dump({
                     'metadata': {
                         'timestamp': datetime.now().isoformat(),
-                        'chunk_count': sum(section.get('metadata', {}).get('chunk_count', 0) 
-                                         for section in report_data.values()),
+                        'chunk_count': sum(
+                            section.get('metadata', {}).get('chunk_count', 0) 
+                            for section in report_data.values()
+                        ),
                         'models': ['openai', 'anthropic']
                     },
                     'sections': report_data

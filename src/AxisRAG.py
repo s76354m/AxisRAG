@@ -43,7 +43,7 @@ class AxisRAG:
                 persist_directory=self.config['persist_directory']
             )
             self.document_processor = DocumentProcessor()
-            self.report_generator = ReportGenerator(self.llm_wrapper)
+            self.report_generator = ReportGenerator(llm_wrapper=self.llm_wrapper)
             self.evaluation_metrics = EvaluationMetrics()
             
             self.logger.info("All components initialized successfully")

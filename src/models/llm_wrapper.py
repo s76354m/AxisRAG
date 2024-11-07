@@ -2,35 +2,39 @@ from typing import Dict, Optional
 import os
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
-from langchain.schema import HumanMessage
 import logging
 
 class LLMWrapper:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.models = self._initialize_models()
-        
-    def _initialize_models(self) -> Dict:
-        """Initialize both OpenAI and Anthropic models"""
+        self.models = {
+            'openai': ChatOpenAI(
+                model_name="gpt-4-1106-preview",
+                temperature=0.7,
+                max_tokens=4096
+            ),
+            'anthropic': ChatAnthropic(
+                model="claude-3-sonnet-20240229",
+                temperature=0.7,
+                max_tokens=8192
+            )
+        }
+        self.logger.info("Models initialized successfully")
+
+    async def generate_text(self, prompt: str, timeout: int = 30) -> str:
+        """Generate text using OpenAI first, fallback to Anthropic"""
         try:
-            models = {
-                'openai': ChatOpenAI(
-                    temperature=0,
-                    model_name="gpt-4-turbo-preview",
-                    max_tokens=4000
-                ),
-                'anthropic': ChatAnthropic(
-                    temperature=0,
-                    model_name="claude-3-sonnet-20240229",
-                    max_tokens=4000
-                )
-            }
-            self.logger.info("Models initialized successfully")
-            return models
+            response = await self.models['openai'].ainvoke(prompt)
+            return response.content
         except Exception as e:
-            self.logger.error(f"Error initializing models: {str(e)}")
-            raise
-            
+            self.logger.error(f"Error with openai: {str(e)}")
+            try:
+                response = await self.models['anthropic'].ainvoke(prompt)
+                return response.content
+            except Exception as e:
+                self.logger.error(f"Error with anthropic: {str(e)}")
+                raise
+        
     async def generate_comparison(self, prompt: str) -> Dict[str, str]:
         """Generate responses from both models for comparison"""
         results = {}
